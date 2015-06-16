@@ -4,9 +4,9 @@
 
     fleetctl destroy discovery@{1..3}.service; fleetctl unload discovery@.service; fleetctl destroy discovery@.service; fleetctl submit discovery@.service; fleetctl start discovery@{1..3}.service
 
-    fleetctl stop wordpress-admin.service; fleetctl unload wordpress-admin.service; fleetctl destroy wordpress-admin.service; fleetctl submit wordpress-admin.service; fleetctl start wordpress-admin.service
+    fleetctl destroy wordpress-admin.service; fleetctl unload wordpress-admin.service; fleetctl submit wordpress-admin.service; fleetctl start wordpress-admin.service
 
-    fleetctl stop wordpress@{1..5}.service; fleetctl unload wordpress@.service; fleetctl destroy wordpress@{1..5}.service; fleetctl destroy wordpress@.service; fleetctl submit wordpress@.service; fleetctl start wordpress@{1..5}.service
+    fleetctl destroy wordpress@{1..5}.service; fleetctl unload wordpress@.service; fleetctl destroy wordpress@.service; fleetctl submit wordpress@.service; fleetctl start wordpress@{1..5}.service
 
 ## Before you run it
 
