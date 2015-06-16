@@ -1,0 +1,52 @@
+# This discovery service (a.k.a sidekick) keeps etcd up to date with the necessary vulcand configuration
+
+[Unit]
+Description=Discovery service
+After=vulcan.service
+
+[Service]
+EnvironmentFile=/etc/environment
+
+TimeoutStartSec=0
+ExecStart=/bin/bash -c '\
+appname=\"wordpress\"; \
+adminappname=\"wordpressadmin\"; \
+\
+while true; do \
+  echo "vulcancntrs=\$(etcdctl ls --recursive /vulcand | grep \"$(hostname)\" | sed \'s/.*-//;s/\.service//\')\" > /dev/null; \
+  vulcancntrs=$(etcdctl ls --recursive /vulcand | grep \"$(hostname)\" | sed \'s/.*-//;s/\.service//\') > /dev/null; \
+  for vc in $vulcancntrs; do \
+    if ! (docker ps | grep \"$vc\" > /dev/null); then \
+      echo \"Attempting to remove: $vc\"; \
+      \
+      /bin/etcdctl rm /vulcand/upstreams/$appname/endpoints/$(hostname)-$appname-$vc.service; \
+      /bin/etcdctl rm /vulcand/upstreams/$adminappname/endpoints/$(hostname)-$adminappname-$vc.service; \
+      \
+      echo "Removed container $vc"; \
+    fi; \
+  done; \
+  \
+  wpcontainers=$(docker ps | grep wordpress- | cut -d\' \' -f1); \
+  for wpc in $wpcontainers; do \
+    wpport=$(docker port $wpc | cut -d\':\' -f2); \
+    /bin/etcdctl set \"/vulcand/upstreams/$appname/endpoints/$(hostname)-$appname-$wpc.service\" http://$COREOS_PUBLIC_IPV4:$wpport > /dev/null; \
+    /bin/etcdctl set \"/vulcand/hosts/$appname.local/locations/home/path\" \"/\" > /dev/null; \
+    /bin/etcdctl set \"/vulcand/hosts/$appname.local/locations/home/upstream\" $appname > /dev/null; \
+  done; \
+  \
+  wpadmincontainers=$(docker ps | grep wordpressadmin | cut -d\' \' -f1); \
+  for wpac in $wpadmincontainers; do \
+    wpport=$(docker port $wpac | cut -d\':\' -f2); \
+    /bin/etcdctl set \"/vulcand/upstreams/$adminappname/endpoints/$(hostname)-$adminappname-$wpac.service\" http://$COREOS_PUBLIC_IPV4:$wpport > /dev/null; \
+    /bin/etcdctl set \"/vulcand/hosts/$appname.local/locations/wp-admin/path\" \"/wp-admin.*\" > /dev/null; \
+    /bin/etcdctl set \"/vulcand/hosts/$appname.local/locations/wp-admin/upstream\" $adminappname > /dev/null; \
+    /bin/etcdctl set \"/vulcand/hosts/$appname.local/locations/login/path\" \"/wp-login.php\" > /dev/null; \
+    /bin/etcdctl set \"/vulcand/hosts/$appname.local/locations/login/upstream\" $adminappname > /dev/null; \
+  done; \
+  \
+  sleep 3; \
+done'
+ExecStop=/bin/true
+
+[X-Fleet]
+Conflicts=discovery@*.service

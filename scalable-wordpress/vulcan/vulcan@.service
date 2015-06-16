@@ -1,0 +1,44 @@
+# Your target setup:
+#                        +---------80----------+                        
+#                        |                     |                        
+#                        |    Load Balancer    |                        
+#                        |                     |                        
+#                        +--------8888---------+                        
+#                        /            |            \                      
+#                       /             |             \                     
+# +-------8888---------+   +--------8888---------+  +-------8888---------+
+# |                    |   |                     |  |                    |
+# |     core-01        |   |      core-02        |  |      core-03       |
+# |                    |   |                     |  |                    |
+# +--------------------+   +---------------------+  +--------------------+
+# |                    |   |                     |  |                    |
+# |     vulcand        |   |  vulcand (via etcd) |  |      vulcand       |
+# |                    |   |                     |  |                    |
+# +---+---+---+---+---++   +---+---+---+---+---+-+  +-+---+---+---+----+-+
+#     |   |   |   |   |        |   |   |   |   |      |   |   |   |    |  
+# +---+---+---+-+-+---+     +--+---+---+---+---+    +--+---+---+----+---+
+# | wp| wp| wp| wp| wp|     |wp| wp| wp| wp| wp|    |wp| wp| wp| wp |wp |
+# +-------------------+     +------------------+    +-------------------+
+#
+# Add a hosts entry: 127.0.0.1 wordpress.local
+# Once submitted to your fleet visit http://wordpress.local:8888/ for the wordpress site
+# and http://wordpress.local:8888/wp-admin/ for the Wordpress administration console.
+# For bonus points stick another vulcanproxy or haproxy in front of all hosts
+# in the CoreOS cluster.
+
+[Unit]
+Description=Vulcan
+After=docker.service
+
+[Service]
+EnvironmentFile=/etc/environment
+
+TimeoutStartSec=0
+ExecStartPre=-/usr/bin/docker kill vulcan1
+ExecStartPre=-/usr/bin/docker rm vulcan1
+ExecStartPre=/usr/bin/docker pull mailgun/vulcand
+ExecStart=/usr/bin/docker run --rm --name vulcan1 -p 8000:8000 -p 8182:8182 mailgun/vulcand /go/bin/vulcand -apiInterface=0.0.0.0 -interface=0.0.0.0 -etcd=http://${COREOS_PRIVATE_IPV4}:2379 -port=8000 -apiPort=8182
+ExecStop=/usr/bin/docker kill vulcan1
+
+[X-Fleet]
+Conflicts=vulcan@*.service

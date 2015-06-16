@@ -1,0 +1,17 @@
+[Unit]
+Description=Public Wordpress
+After=docker.service
+Requires=docker.service
+
+[Service]
+TimeoutStartSec=0
+EnvironmentFile=/etc/environment
+ExecStartPre=-/usr/bin/docker kill wordpress-%i
+ExecStartPre=-/usr/bin/docker rm wordpress-%i
+ExecStartPre=-/usr/bin/docker pull sdomsta/clusterable-wordpress
+ExecStart=/usr/bin/docker run -rm --name wordpress-%i -e WORDPRESS_DB_NAME=dbname -e WORDPRESS_DB_HOST=dbhost:dbport -e WORDPRESS_DB_USER=dbuser -e WORDPRESS_DB_PASSWORD=dbpassword -e WORDPRESS_CACHE_S3_KEY=s3key -e WORDPRESS_CACHE_S3_SECRET=s3secret -e WORDPRESS_CACHE_S3_BUCKET=s3bucket -e WORDPRESS_CACHE_HOME="http://wordpress.local:8888" -p 80 sdomsta/clusterable-wordpress
+ExecStop=/usr/bin/docker stop wordpress-%i
+
+# Want one container per host? Uncomment below ...
+#[X-Fleet]
+#Conflicts=wordpress@*.service
